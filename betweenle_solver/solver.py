@@ -16,6 +16,7 @@ def make_fdist(path: str) -> None:
     from nltk.probability import FreqDist
     from nltk.corpus import gutenberg
 
+    print("Creating word frequency lookup table")
     # Download the Gutenberg corpus (if not already downloaded)
     nltk.download('gutenberg')
 
@@ -49,7 +50,7 @@ def get_word_list(url: str = 'sgb-words.txt') -> List[str]:
         List[str]: The list of valid words.
     """
     path = str(url).split('/')[-1]
-
+    path = Path(__file__).parent / path
     if not Path(path).exists():
         import requests
 
@@ -59,9 +60,9 @@ def get_word_list(url: str = 'sgb-words.txt') -> List[str]:
         if response.status_code == 200:
             with open(path, "w") as file:
                 file.write(response.text)
-            print("File downloaded successfully.")
+            print("Downloaded Word List.")
         else:
-            raise("Failed to download the file.")
+            raise("Failed to download Word List.")
     
     with open(path, 'r') as file:
         words = file.read().splitlines()
@@ -69,7 +70,7 @@ def get_word_list(url: str = 'sgb-words.txt') -> List[str]:
     return words
 
 
-def load_word_frequencies(path: str = 'word_frequencies.pkl') -> dict:
+def load_word_frequencies(path: str) -> dict:
     """
     Load the word frequencies from a file or create a new frequency distribution if the file doesn't exist.
 
@@ -141,7 +142,8 @@ def find_between_words(word1: str, word2: str, word_list: List[str], after_first
         quantile_start = int(max(0, math.floor(quantile_index - (0.02 * len(valid_words)))))
         quantile_end = int(min(total_distance, math.ceil(1+quantile_index + (0.02 * len(valid_words)))))
         quantile_words = valid_words[quantile_start:quantile_end]
-        word_freqs = load_word_frequencies()
+        _path = Path(__file__).parent / 'word_frequencies.pkl'
+        word_freqs = load_word_frequencies(str(_path))
         print("Quantile Words:",','.join(quantile_words[:5]),f'[...] (total {len(quantile_words)})' if len(quantile_words)>5 else '')
         print("Loc-Greedy Word:",valid_words[quantile_index])
         freq_greedy=get_highest_frequency_word(word_freqs,quantile_words)
@@ -175,8 +177,8 @@ def main() -> None:
     """
 
     print("Welcome to Betweenle Solver!")
-    word1 = input("Enter the first word: ").lower()
-    word2 = input("Enter the second word: ").lower()
+    word1 = input("Enter the first word (leave blank if not selected yet): ").lower()
+    word2 = input("Enter the second word (leave blank if not selected yet): ").lower()
 
     after_first = input("Enter the estimated distance after the first word (optional): ")
     before_second = input("Enter the estimated distance before the second word (optional): ")
@@ -191,10 +193,10 @@ def main() -> None:
         between_words, target = find_between_words(word1, word2, word_list)
 
     if between_words:
-        print(f"Words between '{word1}' and '{word2}':")
+        print(f"> Words between '{word1}' and '{word2}':")
         print(','.join(between_words[:10]),'...' if len(between_words)>10 else '\n')
         print(f"{len(between_words)} matches found!")
-
+        print("="*10)
         if after_first and before_second:
             print(f"\n\nI Recommend: {between_words[target]}\n\n")
         else:
