@@ -4,25 +4,18 @@ The Betweenle Solver is a Python-based tool that helps you solve the Betweenle w
 
 ## Installation
 
-1. Clone the repository:
+1. You can pip install the git repo as shown below:
 
 ```
-git clone https://github.com/your-username/betweenle-solver.git
-cd betweenle-solver
-```
-
-2. Install the required packages:
-
-```
-pip install -r requirements.txt
+> pip install git+https://github.com/llucid-97/betweenle_solver
 ```
 
 ## Usage
 
-To use the Betweenle Solver, run the following command:
+This then adds the following command to your python environment:
 
 ```
-python betweenle_solver.py
+> betweenle_solver
 ```
 
 The solver will prompt you to enter the following information:
