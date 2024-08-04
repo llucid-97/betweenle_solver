@@ -3,7 +3,8 @@ import pickle
 import pickle
 from pathlib import Path
 from typing import List, Optional, Tuple
-
+import logging
+import typing as T
 
 def make_fdist(path: str) -> None:
     """
@@ -108,6 +109,57 @@ def get_highest_frequency_word(wdict: dict, word_list: List[str]) -> Optional[st
 
     return max_frequency_word
 
+def find_closest_word(sorted_words, candidate, boundary:T.Literal['both','after','before']='both'):
+    """
+    Find the alphabetically closest word to the candidate word in the sorted list.
+    
+    :param sorted_words: A sorted list of words
+    :param candidate: The word to find the closest match for
+    :param boundary: 'before', 'after', or 'both' (default)
+    :return: The closest word based on the boundary condition
+    """
+    if boundary not in ['before', 'after', 'both']:
+        raise ValueError("boundary must be 'before', 'after', or 'both'")
+
+    # Binary search to find insertion point
+    left, right = 0, len(sorted_words) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        if sorted_words[mid] < candidate:
+            left = mid + 1
+        elif sorted_words[mid] > candidate:
+            right = mid - 1
+        else:
+            return sorted_words[mid]  # Exact match found
+
+    # Handle boundary conditions
+    if boundary == 'before':
+        return sorted_words[right] if right >= 0 else None
+    elif boundary == 'after':
+        return sorted_words[left] if left < len(sorted_words) else None
+    
+    # For 'both', compare words at insertion point and before
+    before = sorted_words[right] if right >= 0 else None
+    after = sorted_words[left] if left < len(sorted_words) else None
+
+    if before is None:
+        return after
+    if after is None:
+        return before
+
+    # Compare distances
+    before_distance = abs(ord(before[0]) - ord(candidate[0]))
+    after_distance = abs(ord(after[0]) - ord(candidate[0]))
+
+    if before_distance < after_distance:
+        return before
+    elif after_distance < before_distance:
+        return after
+    else:
+        # If first letters are equidistant, compare entire words
+        return before if before < candidate else after
+
+
 def find_between_words(word1: str, word2: str, word_list: List[str], after_first: Optional[float] = None, before_second: Optional[float] = None) -> Tuple[List[str], int]:
     """
     Find the words between two given words in a word list and recommend a word based on distance and frequency.
@@ -122,15 +174,25 @@ def find_between_words(word1: str, word2: str, word_list: List[str], after_first
     Returns:
         Tuple[List[str], int]: A tuple containing the list of valid words between the two given words and the index of the recommended word.
     """
-    start_index = word_list.index(word1) if word1 in word_list else 0
-    end_index = word_list.index(word2) if word2 in word_list else len(word_list) - 1
-
-    if word1 not in word_list:
-        print(f"{word1} not found")
-    if word2 not in word_list:
-        print(f"{word2} not found")
-
+    index = []
+    for i,word in enumerate((word1,word2)):
+        if word in word_list:
+            index.append( word_list.index(word) )
+        else:
+            if len(word):
+                index.append(word_list.index(find_closest_word(word_list,word,
+                                                               boundary='before' if i==0 else 'after')))
+                
+            else:
+                index.append(len(word_list) - 1) if i==0 else 0
+    
+    start_index,end_index = tuple(index)
+    if index[0] == index[1]:
+        logging.warning("Indexer thinks your 2 words are the same. This may be error in my logic if your word is not part of my dictionary so we map to closest one, but also please check that you didn't enter the same word twice. I will attempt a workaround on my end.")
+        start_index = int(start_index*0.999)
+        end_index = min(int(end_index*1.001),len(word_list)-1)
     assert end_index > start_index, f"{word2} appears to come after {word1}! This breaks my logic. Terminating. Did you enter the words in the right order?"
+
 
     valid_words = word_list[start_index+1:end_index]
 
@@ -167,6 +229,9 @@ def find_between_words(word1: str, word2: str, word_list: List[str], after_first
             else:
                 print("Keys are close together! Greedy Policy")
                 target_index = quantile_index
+            
+        # Freq Override
+        target_index = freq_idx
     else:
         target_index = len(valid_words) // 2
     return valid_words, target_index
